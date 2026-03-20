@@ -183,8 +183,8 @@ func (r *InventoryRepository) ConfirmHeld(ctx context.Context, inventoryID strin
 	var out domain.Inventory
 	err := r.inv.FindOneAndUpdate(ctx,
 		bson.M{
-			"_id":             inventoryID,
-			"heldQuantity":    bson.M{"$gte": qty},
+			"_id":          inventoryID,
+			"heldQuantity": bson.M{"$gte": qty},
 		},
 		bson.M{
 			"$inc": bson.M{"heldQuantity": -qty, "soldQuantity": qty},
@@ -212,8 +212,8 @@ func (r *InventoryRepository) ReleaseHeld(ctx context.Context, inventoryID strin
 	var out domain.Inventory
 	err := r.inv.FindOneAndUpdate(ctx,
 		bson.M{
-			"_id":             inventoryID,
-			"heldQuantity":    bson.M{"$gte": qty},
+			"_id":          inventoryID,
+			"heldQuantity": bson.M{"$gte": qty},
 		},
 		bson.M{
 			"$inc": bson.M{"heldQuantity": -qty, "availableQuantity": qty},
