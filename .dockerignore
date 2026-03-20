@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+README.md
+deployments
+api
+.cursor
+*.md
+coverage.out

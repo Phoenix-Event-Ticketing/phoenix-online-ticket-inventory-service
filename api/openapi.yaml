@@ -1,0 +1,168 @@
+openapi: 3.0.3
+info:
+  title: Phoenix Online — Ticket Inventory Service
+  version: 0.1.0
+  description: >
+    Ticket types, quantities, temporary holds, confirm/release flows.
+    Scaffolds return HTTP 501 until business logic is implemented.
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Health
+  - name: Inventory
+  - name: Reservations
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness/readiness
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /inventory:
+    post:
+      tags: [Inventory]
+      summary: Create a single ticket inventory record
+      responses:
+        "501":
+          description: Not implemented (scaffold)
+
+  /inventory/bulk:
+    post:
+      tags: [Inventory]
+      summary: Create multiple ticket categories for one event
+      responses:
+        "501":
+          description: Not implemented (scaffold)
+
+  /inventory/{inventoryId}:
+    get:
+      tags: [Inventory]
+      summary: Get one inventory record
+      parameters:
+        - name: inventoryId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "501":
+          description: Not implemented (scaffold)
+    put:
+      tags: [Inventory]
+      summary: Update ticket type or quantity
+      parameters:
+        - name: inventoryId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "501":
+          description: Not implemented (scaffold)
+
+  /inventory/event/{eventId}:
+    get:
+      tags: [Inventory]
+      summary: List all ticket categories for an event
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "501":
+          description: Not implemented (scaffold)
+
+  /inventory/event/{eventId}/availability:
+    get:
+      tags: [Inventory]
+      summary: Availability summary for an event
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "501":
+          description: Not implemented (scaffold)
+
+  /inventory/hold:
+    post:
+      tags: [Reservations]
+      summary: Temporarily reserve tickets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HoldRequest"
+      responses:
+        "501":
+          description: Not implemented (scaffold)
+
+  /inventory/confirm:
+    post:
+      tags: [Reservations]
+      summary: Confirm held tickets as sold
+      responses:
+        "501":
+          description: Not implemented (scaffold)
+
+  /inventory/release:
+    post:
+      tags: [Reservations]
+      summary: Release held tickets back to stock
+      responses:
+        "501":
+          description: Not implemented (scaffold)
+
+components:
+  schemas:
+    TicketType:
+      type: string
+      enum: [VIP, STANDARD, EARLY_BIRD]
+    HoldStatus:
+      type: string
+      enum: [HELD, CONFIRMED, RELEASED]
+    HoldRequest:
+      type: object
+      required: [eventId, ticketType, quantity, bookingId]
+      properties:
+        eventId:
+          type: string
+          example: evt_101
+        ticketType:
+          $ref: "#/components/schemas/TicketType"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        bookingId:
+          type: string
+          example: book_501
+    HoldResponse:
+      type: object
+      properties:
+        bookingId:
+          type: string
+        holdStatus:
+          $ref: "#/components/schemas/HoldStatus"
+        expiresAt:
+          type: string
+          format: date-time
