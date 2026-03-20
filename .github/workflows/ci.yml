@@ -87,12 +87,9 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
+            -Dsonar.organization=phoenix-event-ticketing
             -Dsonar.projectKey=Phoenix-Event-Ticketing_phoenix-online-ticket-inventory-service
             -Dsonar.sources=.
             -Dsonar.go.coverage.reportPaths=coverage.out
-
-      - name: SonarQube Quality Gate
-        uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
