@@ -1,0 +1,35 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "localhost/test", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  inventory:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      MONGODB_URI: mongodb://mongo:27017
+      MONGODB_DATABASE: phoenix_inventory
+      ENVIRONMENT: development
+      SERVICE_NAME: ticket-inventory-service
+      LOG_LEVEL: info
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo_data:
