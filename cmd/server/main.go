@@ -48,8 +48,11 @@ func main() {
 	if err := repo.Ping(context.Background()); err != nil {
 		log.Fatal("mongo ping failed", zap.Error(err))
 	}
+	if err := repo.EnsureIndexes(context.Background()); err != nil {
+		log.Fatal("mongo indexes", zap.Error(err))
+	}
 
-	svc := service.NewInventoryService(repo)
+	svc := service.NewInventoryService(repo, cfg.HoldTTL())
 	invHandler := handler.NewInventoryHandler(svc)
 	router := handler.NewRouter(log, invHandler)
 
