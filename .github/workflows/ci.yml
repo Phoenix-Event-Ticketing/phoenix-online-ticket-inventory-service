@@ -85,6 +85,11 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=Phoenix-Event-Ticketing_phoenix-online-ticket-inventory-service
+            -Dsonar.sources=.
+            -Dsonar.go.coverage.reportPaths=coverage.out
 
       - name: SonarQube Quality Gate
         uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
