@@ -58,16 +58,42 @@ jobs:
       - name: Test with coverage
         run: go test -v ./... -count=1 -coverprofile=coverage.out
 
-      - name: Run govulncheck
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
-
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage.out
+
+  govulncheck:
+    name: Govulncheck Security Scan
+    runs-on: ubuntu-latest
+    needs: build-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run govulncheck and generate SARIF
+        id: govulncheck
+        continue-on-error: true
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-input: "1.25"
+          output-format: sarif
+          output-file: govulncheck.sarif
+
+      - name: Upload govulncheck results to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: govulncheck.sarif
+          category: govulncheck
+
+      - name: Fail if govulncheck found vulnerabilities
+        if: steps.govulncheck.outcome == 'failure'
+        run: |
+          echo "govulncheck found reachable vulnerabilities. Check the GitHub Security tab for details."
+          exit 1
 
   security:
     name: Trivy Security Scans
@@ -93,7 +119,7 @@ jobs:
 
       - name: Upload FS scan to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-fs.sarif
           category: trivy-fs
@@ -112,7 +138,7 @@ jobs:
 
       - name: Upload config scan to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-config.sarif
           category: trivy-config
@@ -132,7 +158,7 @@ jobs:
 
       - name: Upload secret scan to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-secret.sarif
           category: trivy-secret
@@ -153,7 +179,7 @@ jobs:
 
       - name: Upload image scan to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-image.sarif
           category: trivy-image
