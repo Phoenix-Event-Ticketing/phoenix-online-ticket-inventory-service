@@ -220,8 +220,8 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.organization=phoenix-event-ticketing
             -Dsonar.projectKey=Phoenix-Event-Ticketing_phoenix-online-ticket-inventory-service
+            -Dsonar.organization=phoenix-event-ticketing
             -Dsonar.sources=.
             -Dsonar.go.coverage.reportPaths=coverage.out
             -Dsonar.qualitygate.wait=true
