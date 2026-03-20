@@ -22,6 +22,7 @@ go run ./cmd/server
 | `ENVIRONMENT` | e.g. `development`, `staging`, `production` |
 | `SERVICE_NAME` | Value for structured logs (`service` field) |
 | `LOG_LEVEL` | `debug`, `info`, `warn`, `error` |
+| `HOLD_TTL_MINUTES` | Hold duration before expiry (default `15`) |
 
 ## Health
 
