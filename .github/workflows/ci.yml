@@ -104,6 +104,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      actions: write
     runs-on: ubuntu-latest
     needs: build-test
 
@@ -191,6 +192,20 @@ jobs:
           sarif_file: trivy-image.sarif
           category: trivy-image
 
+      # SARIF is also in workflow artifacts so you can inspect findings even when Code scanning
+      # is not visible (e.g. private repo without GHAS) or upload-sarif did not create alerts.
+      - name: Upload Trivy SARIF as workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif-reports
+          path: |
+            trivy-fs.sarif
+            trivy-config.sarif
+            trivy-secret.sarif
+            trivy-image.sarif
+          if-no-files-found: warn
+
       - name: Fail if Trivy found HIGH or CRITICAL issues
         if: |
           steps.trivy_fs.outcome == 'failure' ||
@@ -198,7 +213,15 @@ jobs:
           steps.trivy_secret.outcome == 'failure' ||
           steps.trivy_image.outcome == 'failure'
         run: |
-          echo "Trivy found HIGH or CRITICAL issues. Check the GitHub Security tab for details."
+          echo "Trivy step outcomes (failure = exit non-zero: findings OR scan error):"
+          echo "  trivy_fs:     ${{ steps.trivy_fs.outcome }}"
+          echo "  trivy_config: ${{ steps.trivy_config.outcome }}"
+          echo "  trivy_secret: ${{ steps.trivy_secret.outcome }}"
+          echo "  trivy_image:  ${{ steps.trivy_image.outcome }}"
+          echo ""
+          echo "Open the matching 'Trivy ... scan' step above for the table report."
+          echo "Download artifact 'trivy-sarif-reports' to inspect raw SARIF."
+          echo "Code scanning alerts (Security tab) require upload-sarif to succeed; private repos often need GHAS."
           exit 1
 
   sonar:
