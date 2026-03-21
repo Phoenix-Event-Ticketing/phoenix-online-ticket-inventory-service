@@ -58,3 +58,20 @@ On `push` to `main` or `dev`, after tests, govulncheck, Trivy, and Sonar quality
 **Repository variables:** `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_ARTIFACT_REGISTRY` (Artifact Registry repository name), `GCP_IMAGE_NAME` (image name within that repository).
 
 Tags pushed: full commit SHA; plus `dev-latest` on `dev` and `main-latest` on `main`.
+
+After each push, the workflow resolves the image **digest** (`registry/.../image@sha256:...`) and passes it to the GitOps job so the platform config pins the exact artifact that was uploaded.
+
+### GitOps (platform config repo)
+
+After the image push succeeds, the `gitops-update` job checks out the Kustomize platform config repository, runs `kustomize edit set image` with that **digest reference** on `apps/inventory-service/overlays/dev` (for pushes to `dev`) or `overlays/prod` (for pushes to `main`), validates with `kustomize build`, commits, and pushes to `main` on that repo.
+
+**Secret:** `GITOPS_REPO_PAT` — personal access token (or fine-grained PAT) with **`contents: write`** on the platform config repository (e.g. classic PAT with `repo` scope for private repos).
+
+**Repository variables:**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GITOPS_REPO` | Yes | GitHub repo in `owner/name` form (e.g. `Phoenix-Event-Ticketing/phoenix-online-platform-config`). |
+| `GITOPS_KUSTOMIZE_IMAGE_NAME` | No | Image name in the overlay `kustomization.yaml` that must match the base deployment `image` (without tag). Defaults to `ghcr.io/example-org/inventory-service` if unset. |
+
+If you change the placeholder image in the platform config `apps/inventory-service/base/deployment.yaml` and overlays, set `GITOPS_KUSTOMIZE_IMAGE_NAME` to the same value so `kustomize edit set image` rewrites the correct reference.

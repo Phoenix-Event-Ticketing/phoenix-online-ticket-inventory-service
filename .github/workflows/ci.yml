@@ -269,6 +269,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [govulncheck, security, sonar]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    outputs:
+      image_digest_ref: ${{ steps.build_push.outputs.digest_ref }}
     env:
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       GCP_REGION: ${{ vars.GCP_REGION }}
@@ -291,7 +293,9 @@ jobs:
         run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
 
       - name: Build and push image
+        id: build_push
         run: |
+          set -euo pipefail
           IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_ARTIFACT_REGISTRY}/${GCP_IMAGE_NAME}"
           docker build -t "${IMAGE}:${GITHUB_SHA}" .
           docker push "${IMAGE}:${GITHUB_SHA}"
@@ -303,3 +307,75 @@ jobs:
             docker tag "${IMAGE}:${GITHUB_SHA}" "${IMAGE}:main-latest"
             docker push "${IMAGE}:main-latest"
           fi
+          DIGEST_REF="$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE}:${GITHUB_SHA}" 2>/dev/null || true)"
+          if [ -z "${DIGEST_REF}" ] || [ "${DIGEST_REF}" = "<no value>" ]; then
+            DIG="$(gcloud artifacts docker images describe "${IMAGE}:${GITHUB_SHA}" --format='value(image_summary.digest)')"
+            DIGEST_REF="${IMAGE}@${DIG}"
+          fi
+          if [ -z "${DIGEST_REF}" ]; then
+            echo "Failed to resolve image digest after push." >&2
+            exit 1
+          fi
+          echo "digest_ref=${DIGEST_REF}" >> "${GITHUB_OUTPUT}"
+
+  # Requires secrets.GITOPS_REPO_PAT (contents:write on GITOPS_REPO) and vars GITOPS_REPO, GCP_*.
+  # Optional var GITOPS_KUSTOMIZE_IMAGE_NAME must match apps/inventory-service base image name in the platform config repo.
+  gitops-update:
+    name: Update GitOps config (inventory-service image)
+    runs-on: ubuntu-latest
+    needs: push-image
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    permissions:
+      contents: read
+    env:
+      GITOPS_KUSTOMIZE_IMAGE_NAME: ${{ vars.GITOPS_KUSTOMIZE_IMAGE_NAME }}
+      IMAGE_DIGEST_REF: ${{ needs.push-image.outputs.image_digest_ref }}
+
+    steps:
+      - name: Install kustomize
+        env:
+          KUSTOMIZE_VERSION: "5.5.0"
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+            | tar -xzC /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - name: Checkout platform config
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_REPO_PAT }}
+          ref: main
+          path: gitops-repo
+
+      - name: Bump inventory-service image in Kustomize overlay
+        run: |
+          set -euo pipefail
+          KUSTOMIZE_IMAGE_NAME="${GITOPS_KUSTOMIZE_IMAGE_NAME:-ghcr.io/example-org/inventory-service}"
+          case "${GITHUB_REF_NAME}" in
+            dev) OVERLAY_ENV=dev ;;
+            main) OVERLAY_ENV=prod ;;
+            *) echo "Unexpected ref: ${GITHUB_REF_NAME}"; exit 1 ;;
+          esac
+          OVERLAY_DIR="gitops-repo/apps/inventory-service/overlays/${OVERLAY_ENV}"
+          cd "${OVERLAY_DIR}"
+          kustomize edit set image "${KUSTOMIZE_IMAGE_NAME}=${IMAGE_DIGEST_REF}"
+          kustomize build . >/dev/null
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          cd gitops-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u apps/inventory-service/overlays/
+          if git diff --cached --quiet; then
+            echo "No kustomization changes to commit."
+            exit 0
+          fi
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          DIGEST_SHORT="${IMAGE_DIGEST_REF##*@}"
+          git commit -m "chore(inventory-service): bump image ${SHORT_SHA} (${DIGEST_SHORT})"
+          git push origin HEAD:main
