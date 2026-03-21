@@ -48,3 +48,13 @@ docker compose up --build
 ```
 
 The app waits for MongoDB health before starting.
+
+## CI (GitHub Actions)
+
+On `push` to `main` or `dev`, after tests, govulncheck, Trivy, and Sonar quality gate succeed, the workflow builds and pushes the image to Google Artifact Registry.
+
+**Secret:** `GCP_SA_KEY` — service account JSON for pushing images.
+
+**Repository variables:** `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_ARTIFACT_REGISTRY` (Artifact Registry repository name), `GCP_IMAGE_NAME` (image name within that repository).
+
+Tags pushed: full commit SHA; plus `dev-latest` on `dev` and `main-latest` on `main`.
