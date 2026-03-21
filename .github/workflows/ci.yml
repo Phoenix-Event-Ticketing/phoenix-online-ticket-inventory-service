@@ -112,6 +112,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # limit-severities-for-sarif: true is required or trivy-action unsets TRIVY_SEVERITY for SARIF
+      # and scans all severities — exit-code then fails on LOW/MEDIUM too.
       - name: Trivy FS vulnerability scan
         id: trivy_fs
         continue-on-error: true
@@ -123,6 +125,7 @@ jobs:
           format: sarif
           output: trivy-fs.sarif
           severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
           exit-code: "1"
 
       - name: Upload FS scan to GitHub Security
@@ -142,6 +145,7 @@ jobs:
           format: sarif
           output: trivy-config.sarif
           severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
           exit-code: "1"
 
       - name: Upload config scan to GitHub Security
@@ -162,6 +166,7 @@ jobs:
           format: sarif
           output: trivy-secret.sarif
           severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
           exit-code: "1"
 
       - name: Upload secret scan to GitHub Security
@@ -183,6 +188,7 @@ jobs:
           format: sarif
           output: trivy-image.sarif
           severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
           exit-code: "1"
 
       - name: Upload image scan to GitHub Security
