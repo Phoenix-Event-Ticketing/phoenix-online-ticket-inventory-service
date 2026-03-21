@@ -8,17 +8,14 @@ on:
   pull_request:
     branches: [main, dev]
 
-permissions:
-  contents: read
-  pull-requests: read
-  security-events: write
-
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build-test:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     env:
       MONGODB_URI: mongodb://127.0.0.1:27017
@@ -70,6 +67,9 @@ jobs:
 
   govulncheck:
     name: Govulncheck Security Scan
+    permissions:
+      contents: read
+      security-events: write
     runs-on: ubuntu-latest
     needs: build-test
 
@@ -101,6 +101,9 @@ jobs:
 
   security:
     name: Trivy Security Scans
+    permissions:
+      contents: read
+      security-events: write
     runs-on: ubuntu-latest
     needs: build-test
 
@@ -200,6 +203,9 @@ jobs:
 
   sonar:
     name: SonarQube Cloud Analysis + Quality Gate
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-latest
     needs: build-test
 
@@ -229,6 +235,8 @@ jobs:
 
   push-image:
     name: Push Docker image to Artifact Registry
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: [govulncheck, security, sonar]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
