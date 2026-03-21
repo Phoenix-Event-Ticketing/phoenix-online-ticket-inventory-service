@@ -59,11 +59,9 @@ On `push` to `main` or `dev`, after tests, govulncheck, Trivy, and Sonar quality
 
 Tags pushed: full commit SHA; plus `dev-latest` on `dev` and `main-latest` on `main`.
 
-After each push, the workflow resolves the image **digest** (`registry/.../image@sha256:...`) and passes it to the GitOps job so the platform config pins the exact artifact that was uploaded.
-
 ### GitOps (platform config repo)
 
-After the image push succeeds, the `gitops-update` job checks out the Kustomize platform config repository, runs `kustomize edit set image` with that **digest reference** on `apps/inventory-service/overlays/dev` (for pushes to `dev`) or `overlays/prod` (for pushes to `main`), validates with `kustomize build`, commits, and pushes to `main` on that repo.
+After the image push succeeds, the `gitops-update` job checks out the Kustomize platform config repository, runs `kustomize edit set image` so each overlay’s `images[].newTag` is the **same commit SHA** tag that was pushed to Artifact Registry (`apps/inventory-service/overlays/dev` for `dev`, `overlays/prod` for `main`). The base deployment and overlays should use the same registry path as your `GCP_*` variables (see below). Validates with `kustomize build`, then commits and pushes to `main` on the config repo.
 
 **Secret:** `GITOPS_REPO_PAT` — personal access token (or fine-grained PAT) with **`contents: write`** on the platform config repository (e.g. classic PAT with `repo` scope for private repos).
 
@@ -72,6 +70,4 @@ After the image push succeeds, the `gitops-update` job checks out the Kustomize 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GITOPS_REPO` | Yes | GitHub repo in `owner/name` form (e.g. `Phoenix-Event-Ticketing/phoenix-online-platform-config`). |
-| `GITOPS_KUSTOMIZE_IMAGE_NAME` | No | Image name in the overlay `kustomization.yaml` that must match the base deployment `image` (without tag). Defaults to `ghcr.io/example-org/inventory-service` if unset. |
-
-If you change the placeholder image in the platform config `apps/inventory-service/base/deployment.yaml` and overlays, set `GITOPS_KUSTOMIZE_IMAGE_NAME` to the same value so `kustomize edit set image` rewrites the correct reference.
+| `GITOPS_KUSTOMIZE_IMAGE_NAME` | No | Must match `images[].name` in each overlay (same as base deployment `image` without tag). If unset, defaults to the Artifact Registry image built from `GCP_REGION`, `GCP_PROJECT_ID`, `GCP_ARTIFACT_REGISTRY`, and `GCP_IMAGE_NAME`. Set this only if the config repo hardcodes a different registry path than those variables. |
