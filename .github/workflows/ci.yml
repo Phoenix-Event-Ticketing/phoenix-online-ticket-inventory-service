@@ -1,13 +1,12 @@
 name: CI
 
 on:
-  pull_request:
+
+  push: 
     branches: [main, dev]
 
-permissions:
-  contents: read
-  pull-requests: read
-  security-events: write
+  pull_request:
+    branches: [main, dev]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -15,6 +14,8 @@ concurrency:
 
 jobs:
   build-test:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     env:
       MONGODB_URI: mongodb://127.0.0.1:27017
@@ -40,7 +41,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.25.8"
 
       - name: Verify modules
         run: go mod verify
@@ -66,6 +67,9 @@ jobs:
 
   govulncheck:
     name: Govulncheck Security Scan
+    permissions:
+      contents: read
+      security-events: write
     runs-on: ubuntu-latest
     needs: build-test
 
@@ -78,7 +82,7 @@ jobs:
         continue-on-error: true
         uses: golang/govulncheck-action@v1
         with:
-          go-version-input: "1.25"
+          go-version-input: "1.25.8"
           output-format: sarif
           output-file: govulncheck.sarif
 
@@ -97,6 +101,10 @@ jobs:
 
   security:
     name: Trivy Security Scans
+    permissions:
+      contents: read
+      security-events: write
+      actions: write
     runs-on: ubuntu-latest
     needs: build-test
 
@@ -104,6 +112,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # limit-severities-for-sarif: true is required or trivy-action unsets TRIVY_SEVERITY for SARIF
+      # and scans all severities — exit-code then fails on LOW/MEDIUM too.
       - name: Trivy FS vulnerability scan
         id: trivy_fs
         continue-on-error: true
@@ -115,6 +125,7 @@ jobs:
           format: sarif
           output: trivy-fs.sarif
           severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
           exit-code: "1"
 
       - name: Upload FS scan to GitHub Security
@@ -134,6 +145,7 @@ jobs:
           format: sarif
           output: trivy-config.sarif
           severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
           exit-code: "1"
 
       - name: Upload config scan to GitHub Security
@@ -154,6 +166,7 @@ jobs:
           format: sarif
           output: trivy-secret.sarif
           severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
           exit-code: "1"
 
       - name: Upload secret scan to GitHub Security
@@ -175,6 +188,7 @@ jobs:
           format: sarif
           output: trivy-image.sarif
           severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
           exit-code: "1"
 
       - name: Upload image scan to GitHub Security
@@ -184,6 +198,20 @@ jobs:
           sarif_file: trivy-image.sarif
           category: trivy-image
 
+      # SARIF is also in workflow artifacts so you can inspect findings even when Code scanning
+      # is not visible (e.g. private repo without GHAS) or upload-sarif did not create alerts.
+      - name: Upload Trivy SARIF as workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif-reports
+          path: |
+            trivy-fs.sarif
+            trivy-config.sarif
+            trivy-secret.sarif
+            trivy-image.sarif
+          if-no-files-found: warn
+
       - name: Fail if Trivy found HIGH or CRITICAL issues
         if: |
           steps.trivy_fs.outcome == 'failure' ||
@@ -191,11 +219,22 @@ jobs:
           steps.trivy_secret.outcome == 'failure' ||
           steps.trivy_image.outcome == 'failure'
         run: |
-          echo "Trivy found HIGH or CRITICAL issues. Check the GitHub Security tab for details."
+          echo "Trivy step outcomes (failure = exit non-zero: findings OR scan error):"
+          echo "  trivy_fs:     ${{ steps.trivy_fs.outcome }}"
+          echo "  trivy_config: ${{ steps.trivy_config.outcome }}"
+          echo "  trivy_secret: ${{ steps.trivy_secret.outcome }}"
+          echo "  trivy_image:  ${{ steps.trivy_image.outcome }}"
+          echo ""
+          echo "Open the matching 'Trivy ... scan' step above for the table report."
+          echo "Download artifact 'trivy-sarif-reports' to inspect raw SARIF."
+          echo "Code scanning alerts (Security tab) require upload-sarif to succeed; private repos often need GHAS."
           exit 1
 
   sonar:
     name: SonarQube Cloud Analysis + Quality Gate
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-latest
     needs: build-test
 
@@ -216,9 +255,51 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.organization=phoenix-event-ticketing
             -Dsonar.projectKey=Phoenix-Event-Ticketing_phoenix-online-ticket-inventory-service
+            -Dsonar.organization=phoenix-event-ticketing
             -Dsonar.sources=.
             -Dsonar.go.coverage.reportPaths=coverage.out
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
+
+  push-image:
+    name: Push Docker image to Artifact Registry
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    needs: [govulncheck, security, sonar]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      GCP_ARTIFACT_REGISTRY: ${{ vars.GCP_ARTIFACT_REGISTRY }}
+      GCP_IMAGE_NAME: ${{ vars.GCP_IMAGE_NAME }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push image
+        run: |
+          IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_ARTIFACT_REGISTRY}/${GCP_IMAGE_NAME}"
+          docker build -t "${IMAGE}:${GITHUB_SHA}" .
+          docker push "${IMAGE}:${GITHUB_SHA}"
+          if [ "${GITHUB_REF_NAME}" = "dev" ]; then
+            docker tag "${IMAGE}:${GITHUB_SHA}" "${IMAGE}:dev-latest"
+            docker push "${IMAGE}:dev-latest"
+          fi
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            docker tag "${IMAGE}:${GITHUB_SHA}" "${IMAGE}:main-latest"
+            docker push "${IMAGE}:main-latest"
+          fi
