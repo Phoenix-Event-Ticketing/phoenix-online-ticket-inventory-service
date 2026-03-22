@@ -249,7 +249,9 @@ jobs:
         with:
           name: coverage-report
 
-      - name: SonarQube Scan
+      # SonarCloud free tier / branch setup often has no quality gate outside main; waiting fails there.
+      - name: SonarQube Scan (wait for quality gate on main)
+        if: github.ref == 'refs/heads/main'
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -261,6 +263,19 @@ jobs:
             -Dsonar.go.coverage.reportPaths=coverage.out
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
+
+      - name: SonarQube Scan (no quality gate wait on non-main branches)
+        if: github.ref != 'refs/heads/main'
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=Phoenix-Event-Ticketing_phoenix-online-ticket-inventory-service
+            -Dsonar.organization=phoenix-event-ticketing
+            -Dsonar.sources=.
+            -Dsonar.go.coverage.reportPaths=coverage.out
+            -Dsonar.qualitygate.wait=false
 
   push-image:
     name: Push Docker image to Artifact Registry

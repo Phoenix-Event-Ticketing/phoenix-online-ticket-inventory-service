@@ -51,7 +51,7 @@ The app waits for MongoDB health before starting.
 
 ## CI (GitHub Actions)
 
-On `push` to `main` or `dev`, after tests, govulncheck, Trivy, and Sonar quality gate succeed, the workflow builds and pushes the image to Google Artifact Registry.
+On `push` to `main` or `dev`, after tests, govulncheck, Trivy, and Sonar (quality gate **only on `main`**; other branches upload analysis without waiting), the workflow can build and push the image to Google Artifact Registry.
 
 **Secret:** `GCP_SA_KEY` — service account JSON for pushing images.
 
