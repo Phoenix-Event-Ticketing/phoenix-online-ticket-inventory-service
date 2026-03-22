@@ -249,7 +249,9 @@ jobs:
         with:
           name: coverage-report
 
-      - name: SonarQube Scan
+      # SonarCloud free tier / branch setup often has no quality gate outside main; waiting fails there.
+      - name: SonarQube Scan (wait for quality gate on main)
+        if: github.ref == 'refs/heads/main'
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -261,6 +263,19 @@ jobs:
             -Dsonar.go.coverage.reportPaths=coverage.out
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
+
+      - name: SonarQube Scan (no quality gate wait on non-main branches)
+        if: github.ref != 'refs/heads/main'
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=Phoenix-Event-Ticketing_phoenix-online-ticket-inventory-service
+            -Dsonar.organization=phoenix-event-ticketing
+            -Dsonar.sources=.
+            -Dsonar.go.coverage.reportPaths=coverage.out
+            -Dsonar.qualitygate.wait=false
 
   push-image:
     name: Push Docker image to Artifact Registry
@@ -322,15 +337,20 @@ jobs:
       GITOPS_KUSTOMIZE_IMAGE_NAME: ${{ vars.GITOPS_KUSTOMIZE_IMAGE_NAME }}
 
     steps:
-      - name: Install kustomize
+      - name: Install kustomize and yq
         env:
           KUSTOMIZE_VERSION: "5.5.0"
+          YQ_VERSION: "v4.44.3"
         run: |
           set -euo pipefail
           curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
             | tar -xzC /tmp
           sudo mv /tmp/kustomize /usr/local/bin/kustomize
+          curl -fsSL -o /tmp/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          sudo mv /tmp/yq /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
           kustomize version
+          yq --version
 
       - name: Checkout platform config
         uses: actions/checkout@v4
@@ -352,7 +372,10 @@ jobs:
           esac
           OVERLAY_DIR="gitops-repo/apps/inventory-service/overlays/${OVERLAY_ENV}"
           cd "${OVERLAY_DIR}"
-          kustomize edit set image "${KUSTOMIZE_IMAGE_NAME}=${IMAGE}:${GITHUB_SHA}"
+          export TAG="${GITHUB_SHA}"
+          export IMG_NAME="${KUSTOMIZE_IMAGE_NAME}"
+          yq e -i '(.images[] | select(.name == strenv(IMG_NAME))).newTag = strenv(TAG)' kustomization.yaml
+          sed -i '/^    newName:/d' kustomization.yaml
           kustomize build . >/dev/null
 
       - name: Commit and push

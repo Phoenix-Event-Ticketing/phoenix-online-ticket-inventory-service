@@ -51,7 +51,7 @@ The app waits for MongoDB health before starting.
 
 ## CI (GitHub Actions)
 
-On `push` to `main` or `dev`, after tests, govulncheck, Trivy, and Sonar quality gate succeed, the workflow builds and pushes the image to Google Artifact Registry.
+On `push` to `main` or `dev`, after tests, govulncheck, Trivy, and Sonar (quality gate **only on `main`**; other branches upload analysis without waiting), the workflow can build and push the image to Google Artifact Registry.
 
 **Secret:** `GCP_SA_KEY` — service account JSON for pushing images.
 
@@ -61,7 +61,7 @@ Tags pushed: full commit SHA; plus `dev-latest` on `dev` and `main-latest` on `m
 
 ### GitOps (platform config repo)
 
-After the image push succeeds, the `gitops-update` job checks out the Kustomize platform config repository, runs `kustomize edit set image` so each overlay’s `images[].newTag` is the **same commit SHA** tag that was pushed to Artifact Registry (`apps/inventory-service/overlays/dev` for `dev`, `overlays/prod` for `main`). The base deployment and overlays should use the same registry path as your `GCP_*` variables (see below). Validates with `kustomize build`, then commits and pushes to `main` on the config repo.
+After the image push succeeds, the `gitops-update` job checks out the Kustomize platform config repository, sets each overlay’s `images[].newTag` to the **same commit SHA** tag that was pushed (via `yq`, so only `name` + `newTag` are kept—no redundant `newName`). Overlays: `apps/inventory-service/overlays/dev` for `dev`, `overlays/prod` for `main`. The base deployment and overlays should use the same registry path as your `GCP_*` variables (see below). Validates with `kustomize build`, then commits and pushes to `main` on the config repo.
 
 **Secret:** `GITOPS_REPO_PAT` — personal access token (or fine-grained PAT) with **`contents: write`** on the platform config repository (e.g. classic PAT with `repo` scope for private repos).
 
