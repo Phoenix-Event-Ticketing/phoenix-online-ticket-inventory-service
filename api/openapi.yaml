@@ -4,9 +4,7 @@ info:
   version: 0.1.0
   description: >
     Ticket types, quantities, temporary holds, confirm/release flows.
-    Protected routes require `Authorization: Bearer <JWT>` from the User Service (user tokens with
-    `permissions` claims) or service tokens (`typ: service`, `sub` = service id) combined with
-    `SERVICE_REGISTRY` for allowed permissions per caller.
+    Scaffolds return HTTP 501 until business logic is implemented.
 
 servers:
   - url: http://localhost:8080
@@ -38,17 +36,7 @@ paths:
     post:
       tags: [Inventory]
       summary: Create a single ticket inventory record
-      security:
-        - bearerAuth: []
       responses:
-        "201":
-          description: Created
-        "400":
-          description: Bad request
-        "401":
-          description: Missing or invalid JWT
-        "403":
-          description: Missing required permission (CREATE_TICKET_TYPE)
         "501":
           description: Not implemented (scaffold)
 
@@ -56,15 +44,7 @@ paths:
     post:
       tags: [Inventory]
       summary: Create multiple ticket categories for one event
-      security:
-        - bearerAuth: []
       responses:
-        "201":
-          description: Created
-        "401":
-          description: Missing or invalid JWT
-        "403":
-          description: Missing required permission (CREATE_TICKET_TYPE)
         "501":
           description: Not implemented (scaffold)
 
@@ -72,8 +52,6 @@ paths:
     get:
       tags: [Inventory]
       summary: Get one inventory record
-      security:
-        - bearerAuth: []
       parameters:
         - name: inventoryId
           in: path
@@ -81,19 +59,11 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: OK
-        "401":
-          description: Missing or invalid JWT
-        "403":
-          description: Missing required permission (VIEW_TICKET_INVENTORY)
         "501":
           description: Not implemented (scaffold)
     put:
       tags: [Inventory]
       summary: Update ticket type or quantity
-      security:
-        - bearerAuth: []
       parameters:
         - name: inventoryId
           in: path
@@ -101,12 +71,6 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: OK
-        "401":
-          description: Missing or invalid JWT
-        "403":
-          description: Missing required permission (UPDATE_TICKET_INVENTORY)
         "501":
           description: Not implemented (scaffold)
 
@@ -114,8 +78,6 @@ paths:
     get:
       tags: [Inventory]
       summary: List all ticket categories for an event
-      security:
-        - bearerAuth: []
       parameters:
         - name: eventId
           in: path
@@ -123,12 +85,6 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: OK
-        "401":
-          description: Missing or invalid JWT
-        "403":
-          description: Missing required permission (VIEW_TICKET_INVENTORY)
         "501":
           description: Not implemented (scaffold)
 
@@ -136,8 +92,6 @@ paths:
     get:
       tags: [Inventory]
       summary: Availability summary for an event
-      security:
-        - bearerAuth: []
       parameters:
         - name: eventId
           in: path
@@ -145,12 +99,6 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: OK
-        "401":
-          description: Missing or invalid JWT
-        "403":
-          description: Missing required permission (VIEW_TICKET_INVENTORY)
         "501":
           description: Not implemented (scaffold)
 
@@ -158,8 +106,6 @@ paths:
     post:
       tags: [Reservations]
       summary: Temporarily reserve tickets
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -167,12 +113,6 @@ paths:
             schema:
               $ref: "#/components/schemas/HoldRequest"
       responses:
-        "200":
-          description: OK
-        "401":
-          description: Missing or invalid JWT
-        "403":
-          description: Missing required permission (RESERVE_TICKET)
         "501":
           description: Not implemented (scaffold)
 
@@ -180,15 +120,7 @@ paths:
     post:
       tags: [Reservations]
       summary: Confirm held tickets as sold
-      security:
-        - bearerAuth: []
       responses:
-        "200":
-          description: OK
-        "401":
-          description: Missing or invalid JWT
-        "403":
-          description: Missing required permission (RESERVE_TICKET)
         "501":
           description: Not implemented (scaffold)
 
@@ -196,28 +128,11 @@ paths:
     post:
       tags: [Reservations]
       summary: Release held tickets back to stock
-      security:
-        - bearerAuth: []
       responses:
-        "200":
-          description: OK
-        "401":
-          description: Missing or invalid JWT
-        "403":
-          description: Missing required permission (RESERVE_TICKET)
         "501":
           description: Not implemented (scaffold)
 
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: >
-        User JWT (permissions claim) or service JWT (typ=service, sub=service id; allowed permissions
-        from SERVICE_REGISTRY).
-
   schemas:
     TicketType:
       type: string

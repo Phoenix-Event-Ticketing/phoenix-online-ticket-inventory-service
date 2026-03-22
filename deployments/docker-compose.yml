@@ -27,8 +27,6 @@ services:
       ENVIRONMENT: development
       SERVICE_NAME: ticket-inventory-service
       LOG_LEVEL: info
-      JWT_SECRET: dev-local-jwt-secret
-      AUTH_DISABLED: "true"
     depends_on:
       mongo:
         condition: service_healthy

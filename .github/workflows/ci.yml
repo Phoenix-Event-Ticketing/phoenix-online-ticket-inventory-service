@@ -19,8 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MONGODB_URI: mongodb://127.0.0.1:27017
-      JWT_SECRET: ci-jwt-secret-for-tests
-      ENVIRONMENT: test
 
     services:
       mongo:

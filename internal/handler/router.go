@@ -3,19 +3,15 @@ package handler
 import (
 	"net/http"
 
-	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/auth"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/middleware"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 // NewRouter configures Gin with middleware and inventory routes.
-func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware) *gin.Engine {
+func NewRouter(log *zap.Logger, inv *InventoryHandler) *gin.Engine {
 	if log == nil {
 		log = zap.NewNop()
-	}
-	if mw == nil {
-		mw = auth.NewMiddleware(nil)
 	}
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -27,17 +23,16 @@ func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware) *gin
 	})
 
 	grp := r.Group("/inventory")
-	grp.Use(mw.Authenticate())
 	{
-		grp.POST("", mw.RequirePermission(auth.CreateTicketType), inv.CreateInventory)
-		grp.POST("/bulk", mw.RequirePermission(auth.CreateTicketType), inv.BulkCreate)
-		grp.PUT("/:inventoryId", mw.RequirePermission(auth.UpdateTicketInventory), inv.Update)
-		grp.GET("/event/:eventId", mw.RequirePermission(auth.ViewTicketInventory), inv.ListByEvent)
-		grp.GET("/event/:eventId/availability", mw.RequirePermission(auth.ViewTicketInventory), inv.Availability)
-		grp.GET("/:inventoryId", mw.RequirePermission(auth.ViewTicketInventory), inv.GetByID)
-		grp.POST("/hold", mw.RequirePermission(auth.ReserveTicket), inv.Hold)
-		grp.POST("/confirm", mw.RequirePermission(auth.ReserveTicket), inv.Confirm)
-		grp.POST("/release", mw.RequirePermission(auth.ReserveTicket), inv.Release)
+		grp.POST("", inv.CreateInventory)
+		grp.POST("/bulk", inv.BulkCreate)
+		grp.PUT("/:inventoryId", inv.Update)
+		grp.GET("/event/:eventId", inv.ListByEvent)
+		grp.GET("/event/:eventId/availability", inv.Availability)
+		grp.GET("/:inventoryId", inv.GetByID)
+		grp.POST("/hold", inv.Hold)
+		grp.POST("/confirm", inv.Confirm)
+		grp.POST("/release", inv.Release)
 	}
 
 	return r
