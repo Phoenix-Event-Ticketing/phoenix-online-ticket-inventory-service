@@ -1,0 +1,51 @@
+package config
+
+import (
+	"testing"
+)
+
+func TestParseServiceRegistry_ValidJSON(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("SERVICE_REGISTRY", `{"svc":["VIEW_TICKET_INVENTORY"]}`)
+	t.Setenv("JWT_SECRET", "x")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.ServiceRegistry["svc"]) != 1 || cfg.ServiceRegistry["svc"][0] != "VIEW_TICKET_INVENTORY" {
+		t.Fatalf("unexpected registry: %#v", cfg.ServiceRegistry)
+	}
+}
+
+func TestAuthDisabledEffective_OnlyInDevOrTest(t *testing.T) {
+	c := Config{Environment: "production", AuthDisabled: "true"}
+	if c.AuthDisabledEffective() {
+		t.Fatal("auth must not disable in production")
+	}
+	c.Environment = "development"
+	if !c.AuthDisabledEffective() {
+		t.Fatal("expected disabled in development when AUTH_DISABLED=true")
+	}
+}
+
+func TestLoad_RequiresJWTWhenAuthEnabled(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", "")
+	t.Setenv("ENVIRONMENT", "production")
+	t.Setenv("AUTH_DISABLED", "")
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected error without JWT_SECRET in production")
+	}
+}
+
+func TestLoad_AllowsEmptyJWTWhenAuthDisabledInTest(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", "")
+	t.Setenv("ENVIRONMENT", "test")
+	t.Setenv("AUTH_DISABLED", "true")
+	_, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+}

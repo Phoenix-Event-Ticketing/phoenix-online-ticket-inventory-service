@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/auth"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/config"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/handler"
 	applogger "github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/logger"
@@ -54,7 +55,8 @@ func main() {
 
 	svc := service.NewInventoryService(repo, cfg.HoldTTL())
 	invHandler := handler.NewInventoryHandler(svc)
-	router := handler.NewRouter(log, invHandler)
+	authMW := auth.NewMiddleware(&cfg)
+	router := handler.NewRouter(log, invHandler, authMW)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
