@@ -165,6 +165,14 @@ func TestAuthDisabled_SkipsAuth(t *testing.T) {
 	}
 }
 
+func TestClaimsFromContext_Empty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	if ClaimsFromContext(c) != nil {
+		t.Fatal("expected nil")
+	}
+}
+
 func mustSign(t *testing.T, secret string, claims *Claims) string {
 	t.Helper()
 	s, err := SignHS256(secret, claims)

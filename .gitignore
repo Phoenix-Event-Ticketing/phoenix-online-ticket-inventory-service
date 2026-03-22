@@ -10,8 +10,12 @@
 # Test
 *.test
 *.out
+coverage
 coverage.html
 coverage.out
+go-cover.txt
+go-cover
+cov
 
 # Env and secrets
 .env

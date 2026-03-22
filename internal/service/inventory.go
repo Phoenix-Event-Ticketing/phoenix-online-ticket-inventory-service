@@ -12,12 +12,12 @@ import (
 
 // InventoryService coordinates inventory operations.
 type InventoryService struct {
-	repo    *repository.InventoryRepository
+	repo    InventoryRepo
 	holdTTL time.Duration
 }
 
 // NewInventoryService creates the service.
-func NewInventoryService(repo *repository.InventoryRepository, holdTTL time.Duration) *InventoryService {
+func NewInventoryService(repo InventoryRepo, holdTTL time.Duration) *InventoryService {
 	return &InventoryService{repo: repo, holdTTL: holdTTL}
 }
 

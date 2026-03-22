@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 )
 
 func TestParseServiceRegistry_ValidJSON(t *testing.T) {
@@ -47,5 +48,34 @@ func TestLoad_AllowsEmptyJWTWhenAuthDisabledInTest(t *testing.T) {
 	_, err := Load()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLoad_InvalidServiceRegistryJSON(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", "x")
+	t.Setenv("SERVICE_REGISTRY", `{`)
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestLoad_InvalidPort(t *testing.T) {
+	t.Setenv("PORT", "not-a-number")
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestConfig_HoldTTL(t *testing.T) {
+	c := Config{HoldTTLMinutes: 0}
+	if c.HoldTTL() != 15*time.Minute {
+		t.Fatal(c.HoldTTL())
+	}
+	c.HoldTTLMinutes = 30
+	if c.HoldTTL() != 30*time.Minute {
+		t.Fatal(c.HoldTTL())
 	}
 }
