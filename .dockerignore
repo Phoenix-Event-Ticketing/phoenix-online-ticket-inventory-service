@@ -8,4 +8,4 @@ deployments
 api
 .cursor
 *.md
-coverage.out
+go-cover.txt

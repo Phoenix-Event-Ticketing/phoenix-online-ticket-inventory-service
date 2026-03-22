@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MONGODB_URI: mongodb://127.0.0.1:27017
+      JWT_SECRET: ci-jwt-secret-for-tests
+      ENVIRONMENT: test
 
     services:
       mongo:
@@ -57,13 +59,21 @@ jobs:
         run: go vet ./...
 
       - name: Test with coverage
-        run: go test -v ./... -count=1 -coverprofile=coverage.out
+        run: |
+          go test -v ./internal/... ./tests/... -count=1 -coverprofile=go-cover.txt -covermode=atomic
+
+      - name: Enforce minimum coverage (80%)
+        shell: bash
+        run: |
+          cov=$(go tool cover -func go-cover.txt | grep '^total:' | awk '{print $3}' | tr -d '%')
+          echo "total coverage: ${cov}%"
+          awk -v c="$cov" 'BEGIN { if (c+0 < 80.0) { print "coverage below 80%"; exit 1 } }'
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: coverage.out
+          path: go-cover.txt
 
   govulncheck:
     name: Govulncheck Security Scan
@@ -260,7 +270,7 @@ jobs:
             -Dsonar.projectKey=Phoenix-Event-Ticketing_phoenix-online-ticket-inventory-service
             -Dsonar.organization=phoenix-event-ticketing
             -Dsonar.sources=.
-            -Dsonar.go.coverage.reportPaths=coverage.out
+            -Dsonar.go.coverage.reportPaths=go-cover.txt
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
 
@@ -274,7 +284,7 @@ jobs:
             -Dsonar.projectKey=Phoenix-Event-Ticketing_phoenix-online-ticket-inventory-service
             -Dsonar.organization=phoenix-event-ticketing
             -Dsonar.sources=.
-            -Dsonar.go.coverage.reportPaths=coverage.out
+            -Dsonar.go.coverage.reportPaths=go-cover.txt
             -Dsonar.qualitygate.wait=false
 
   push-image:
