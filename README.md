@@ -19,10 +19,13 @@ go run ./cmd/server
 | `PORT` | HTTP listen port (default `8080`) |
 | `MONGODB_URI` | MongoDB connection URI |
 | `MONGODB_DATABASE` | Database name |
-| `ENVIRONMENT` | e.g. `development`, `staging`, `production` |
+| `ENVIRONMENT` | e.g. `development`/`dev`, `test`, `staging`, `production` |
 | `SERVICE_NAME` | Value for structured logs (`service` field) |
 | `LOG_LEVEL` | `debug`, `info`, `warn`, `error` |
 | `HOLD_TTL_MINUTES` | Hold duration before expiry (default `15`) |
+| `JWT_SECRET` | Required when authentication is enabled (shared HS256 secret with User Service) |
+| `AUTH_DISABLED` | `true` only in `development`/`dev` or `test` to skip JWT validation; ignored elsewhere |
+| `SERVICE_REGISTRY` | JSON map of service IDs to allowed permission names |
 
 ## Health
 

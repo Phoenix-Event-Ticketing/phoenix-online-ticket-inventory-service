@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -23,9 +24,17 @@ func TestAuthDisabledEffective_OnlyInDevOrTest(t *testing.T) {
 	if c.AuthDisabledEffective() {
 		t.Fatal("auth must not disable in production")
 	}
+	c.Environment = "prod"
+	if c.AuthDisabledEffective() {
+		t.Fatal("auth must not disable in prod alias")
+	}
 	c.Environment = "development"
 	if !c.AuthDisabledEffective() {
 		t.Fatal("expected disabled in development when AUTH_DISABLED=true")
+	}
+	c.Environment = "dev"
+	if !c.AuthDisabledEffective() {
+		t.Fatal("expected disabled in dev alias when AUTH_DISABLED=true")
 	}
 }
 
@@ -48,6 +57,31 @@ func TestLoad_AllowsEmptyJWTWhenAuthDisabledInTest(t *testing.T) {
 	_, err := Load()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLoad_AllowsEmptyJWTWhenAuthDisabledInDevAlias(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", "")
+	t.Setenv("ENVIRONMENT", "dev")
+	t.Setenv("AUTH_DISABLED", "true")
+	_, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLoad_RejectsAuthDisabledOutsideAllowedEnvironments(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", "")
+	t.Setenv("ENVIRONMENT", "staging")
+	t.Setenv("AUTH_DISABLED", "true")
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "AUTH_DISABLED=true is only allowed") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

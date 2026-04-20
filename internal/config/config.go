@@ -58,6 +58,10 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	if strings.EqualFold(strings.TrimSpace(cfg.AuthDisabled), "true") && !isAuthDisableAllowedEnvironment(cfg.Environment) {
+		return Config{}, fmt.Errorf("AUTH_DISABLED=true is only allowed when ENVIRONMENT is development/dev or test; got %q. Set JWT_SECRET to enable authentication", strings.TrimSpace(cfg.Environment))
+	}
+
 	if !cfg.AuthDisabledEffective() && cfg.JWTSecret == "" {
 		return Config{}, fmt.Errorf("JWT_SECRET is required when authentication is enabled (set AUTH_DISABLED=true only in development/test to skip)")
 	}
@@ -80,11 +84,27 @@ func parseServiceRegistry(raw string, cfg *Config) error {
 
 // AuthDisabledEffective is true only when AUTH_DISABLED is set and the environment is development or test.
 func (c Config) AuthDisabledEffective() bool {
-	env := strings.ToLower(strings.TrimSpace(c.Environment))
-	if env != "development" && env != "test" {
+	if !isAuthDisableAllowedEnvironment(c.Environment) {
 		return false
 	}
 	return strings.EqualFold(strings.TrimSpace(c.AuthDisabled), "true")
+}
+
+func isAuthDisableAllowedEnvironment(environment string) bool {
+	env := normalizeEnvironment(environment)
+	return env == "development" || env == "test"
+}
+
+func normalizeEnvironment(environment string) string {
+	env := strings.ToLower(strings.TrimSpace(environment))
+	switch env {
+	case "dev":
+		return "development"
+	case "prod":
+		return "production"
+	default:
+		return env
+	}
 }
 
 func getEnv(key, def string) string {
