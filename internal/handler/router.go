@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/auth"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/middleware"
@@ -10,7 +11,8 @@ import (
 )
 
 // NewRouter configures Gin with middleware and inventory routes.
-func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware) *gin.Engine {
+// serviceName is returned by GET /inventory (public); empty uses "ticket-inventory-service".
+func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware, serviceName string) *gin.Engine {
 	if log == nil {
 		log = zap.NewNop()
 	}
@@ -24,6 +26,14 @@ func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware) *gin
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	name := strings.TrimSpace(serviceName)
+	if name == "" {
+		name = "ticket-inventory-service"
+	}
+	r.GET("/inventory", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"service": name})
 	})
 
 	grp := r.Group("/inventory")

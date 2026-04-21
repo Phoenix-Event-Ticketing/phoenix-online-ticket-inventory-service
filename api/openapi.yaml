@@ -35,6 +35,20 @@ paths:
                     example: ok
 
   /inventory:
+    get:
+      tags: [Inventory]
+      summary: Service name (public discovery)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  service:
+                    type: string
+                    example: ticket-inventory-service
     post:
       tags: [Inventory]
       summary: Create a single ticket inventory record

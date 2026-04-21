@@ -21,7 +21,7 @@ func testRouter(t *testing.T) *gin.Engine {
 	cfg := &config.Config{Environment: "test", AuthDisabled: "true"}
 	svc := service.NewInventoryService(service.NewFakeInventoryRepo(), time.Minute)
 	h := NewInventoryHandler(svc)
-	return NewRouter(zap.NewNop(), h, auth.NewMiddleware(cfg))
+	return NewRouter(zap.NewNop(), h, auth.NewMiddleware(cfg), "ticket-inventory-service")
 }
 
 func TestRouter_Health(t *testing.T) {
@@ -31,6 +31,25 @@ func TestRouter_Health(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status %d", w.Code)
+	}
+}
+
+func TestRouter_GetInventoryRoot(t *testing.T) {
+	r := testRouter(t)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/inventory", nil)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d", w.Code)
+	}
+	var body struct {
+		Service string `json:"service"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Service != "ticket-inventory-service" {
+		t.Fatalf("unexpected service %q", body.Service)
 	}
 }
 
