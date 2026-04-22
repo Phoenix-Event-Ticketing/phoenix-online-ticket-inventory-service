@@ -113,3 +113,31 @@ func TestConfig_HoldTTL(t *testing.T) {
 		t.Fatal(c.HoldTTL())
 	}
 }
+
+func TestConfig_EventServiceTimeout(t *testing.T) {
+	c := Config{EventServiceTimeoutMs: 0}
+	if c.EventServiceTimeout() != 3*time.Second {
+		t.Fatal(c.EventServiceTimeout())
+	}
+	c.EventServiceTimeoutMs = 1250
+	if c.EventServiceTimeout() != 1250*time.Millisecond {
+		t.Fatal(c.EventServiceTimeout())
+	}
+}
+
+func TestLoad_EventServiceConfigFields(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", "x")
+	t.Setenv("EVENT_SERVICE_URL", " http://event-service:3000/ ")
+	t.Setenv("EVENT_SERVICE_TIMEOUT_MS", "4500")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.EventServiceURL != "http://event-service:3000/" {
+		t.Fatalf("unexpected event service URL: %q", cfg.EventServiceURL)
+	}
+	if cfg.EventServiceTimeoutMs != 4500 {
+		t.Fatalf("unexpected timeout ms: %d", cfg.EventServiceTimeoutMs)
+	}
+}
