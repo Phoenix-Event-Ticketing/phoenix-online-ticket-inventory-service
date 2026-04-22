@@ -3,11 +3,21 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/domain"
 )
+
+type stubEventVerifier struct {
+	exists bool
+	err    error
+}
+
+func (s stubEventVerifier) EventExists(ctx context.Context, eventID string) (bool, error) {
+	return s.exists, s.err
+}
 
 func TestCreateInventory_InvalidTicketType(t *testing.T) {
 	s := NewInventoryService(newFakeRepo(), time.Minute)
@@ -420,5 +430,51 @@ func TestBulkCreate_SingleRow(t *testing.T) {
 	}
 	if len(out) != 1 || out[0].InventoryID == "" {
 		t.Fatalf("unexpected %+v", out[0])
+	}
+}
+
+func TestCreateInventory_EventNotFound(t *testing.T) {
+	s := NewInventoryService(newFakeRepo(), time.Minute, stubEventVerifier{exists: false})
+	_, err := s.CreateInventory(context.Background(), domain.CreateInventoryRequest{
+		EventID: "missing", TicketType: domain.TicketVIP, Price: 1, TotalQuantity: 1,
+	})
+	if !errors.Is(err, ErrEventNotFound) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestCreateInventory_EventServiceUnavailable(t *testing.T) {
+	s := NewInventoryService(newFakeRepo(), time.Minute, stubEventVerifier{err: fmt.Errorf("boom")})
+	_, err := s.CreateInventory(context.Background(), domain.CreateInventoryRequest{
+		EventID: "e1", TicketType: domain.TicketVIP, Price: 1, TotalQuantity: 1,
+	})
+	if !errors.Is(err, ErrEventServiceUnavailable) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestBulkCreate_EventNotFound(t *testing.T) {
+	s := NewInventoryService(newFakeRepo(), time.Minute, stubEventVerifier{exists: false})
+	_, err := s.BulkCreate(context.Background(), domain.BulkCreateRequest{
+		EventID: "missing",
+		Items: []domain.BulkInventoryItem{
+			{TicketType: domain.TicketVIP, Price: 1, TotalQuantity: 1},
+		},
+	})
+	if !errors.Is(err, ErrEventNotFound) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestBulkCreate_EventServiceUnavailable(t *testing.T) {
+	s := NewInventoryService(newFakeRepo(), time.Minute, stubEventVerifier{err: fmt.Errorf("boom")})
+	_, err := s.BulkCreate(context.Background(), domain.BulkCreateRequest{
+		EventID: "e1",
+		Items: []domain.BulkInventoryItem{
+			{TicketType: domain.TicketVIP, Price: 1, TotalQuantity: 1},
+		},
+	})
+	if !errors.Is(err, ErrEventServiceUnavailable) {
+		t.Fatalf("got %v", err)
 	}
 }

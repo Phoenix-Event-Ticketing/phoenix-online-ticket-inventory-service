@@ -44,6 +44,10 @@ func respondServiceErr(c *gin.Context, err error) bool {
 		c.JSON(http.StatusConflict, gin.H{"error": "hold parameters do not match existing hold"})
 	case errors.Is(err, service.ErrInvalidHoldState):
 		c.JSON(http.StatusConflict, gin.H{"error": "invalid hold state"})
+	case errors.Is(err, service.ErrEventNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "event not found"})
+	case errors.Is(err, service.ErrEventServiceUnavailable):
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "event service unavailable"})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 	}

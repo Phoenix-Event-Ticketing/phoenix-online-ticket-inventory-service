@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -31,6 +32,42 @@ func TestRouter_Health(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status %d", w.Code)
+	}
+}
+
+func TestRespondServiceErr_EventValidationMappings(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{name: "event not found", err: service.ErrEventNotFound, want: http.StatusNotFound},
+		{name: "event service unavailable", err: service.ErrEventServiceUnavailable, want: http.StatusServiceUnavailable},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			if !respondServiceErr(c, tc.err) {
+				t.Fatal("expected handled error")
+			}
+			if w.Code != tc.want {
+				t.Fatalf("want %d got %d", tc.want, w.Code)
+			}
+		})
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	if !respondServiceErr(c, errors.New("unknown")) {
+		t.Fatal("expected handled error")
+	}
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("want 500 got %d", w.Code)
 	}
 }
 

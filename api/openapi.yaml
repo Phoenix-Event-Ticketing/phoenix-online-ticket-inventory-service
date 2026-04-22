@@ -63,8 +63,10 @@ paths:
           description: Missing or invalid JWT
         "403":
           description: Missing required permission (CREATE_TICKET_TYPE)
-        "501":
-          description: Not implemented (scaffold)
+        "404":
+          description: Event not found
+        "503":
+          description: Event service unavailable
 
   /inventory/bulk:
     post:
@@ -75,12 +77,16 @@ paths:
       responses:
         "201":
           description: Created
+        "400":
+          description: Bad request
         "401":
           description: Missing or invalid JWT
         "403":
           description: Missing required permission (CREATE_TICKET_TYPE)
-        "501":
-          description: Not implemented (scaffold)
+        "404":
+          description: Event not found
+        "503":
+          description: Event service unavailable
 
   /inventory/{inventoryId}:
     get:

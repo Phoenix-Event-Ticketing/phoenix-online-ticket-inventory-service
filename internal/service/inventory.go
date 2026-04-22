@@ -10,15 +10,34 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// EventVerifier checks whether an event id exists in the event service.
+type EventVerifier interface {
+	EventExists(ctx context.Context, eventID string) (bool, error)
+}
+
+type allowAllEventVerifier struct{}
+
+func (allowAllEventVerifier) EventExists(ctx context.Context, eventID string) (bool, error) {
+	return true, nil
+}
+
 // InventoryService coordinates inventory operations.
 type InventoryService struct {
-	repo    InventoryRepo
-	holdTTL time.Duration
+	repo          InventoryRepo
+	holdTTL       time.Duration
+	eventVerifier EventVerifier
 }
 
 // NewInventoryService creates the service.
-func NewInventoryService(repo InventoryRepo, holdTTL time.Duration) *InventoryService {
-	return &InventoryService{repo: repo, holdTTL: holdTTL}
+func NewInventoryService(repo InventoryRepo, holdTTL time.Duration, verifier ...EventVerifier) *InventoryService {
+	var selected EventVerifier
+	if len(verifier) > 0 {
+		selected = verifier[0]
+	}
+	if selected == nil {
+		selected = allowAllEventVerifier{}
+	}
+	return &InventoryService{repo: repo, holdTTL: holdTTL, eventVerifier: selected}
 }
 
 // CreateInventory handles POST /inventory.
@@ -26,9 +45,17 @@ func (s *InventoryService) CreateInventory(ctx context.Context, req domain.Creat
 	if err := domain.ValidTicketType(req.TicketType); err != nil {
 		return nil, err
 	}
+	eventID := strings.TrimSpace(req.EventID)
+	exists, err := s.eventVerifier.EventExists(ctx, eventID)
+	if err != nil {
+		return nil, ErrEventServiceUnavailable
+	}
+	if !exists {
+		return nil, ErrEventNotFound
+	}
 
 	doc := &domain.Inventory{
-		EventID:           strings.TrimSpace(req.EventID),
+		EventID:           eventID,
 		TicketType:        req.TicketType,
 		Price:             req.Price,
 		TotalQuantity:     req.TotalQuantity,
@@ -48,6 +75,13 @@ func (s *InventoryService) CreateInventory(ctx context.Context, req domain.Creat
 // BulkCreate handles POST /inventory/bulk.
 func (s *InventoryService) BulkCreate(ctx context.Context, req domain.BulkCreateRequest) ([]domain.Inventory, error) {
 	eventID := strings.TrimSpace(req.EventID)
+	exists, err := s.eventVerifier.EventExists(ctx, eventID)
+	if err != nil {
+		return nil, ErrEventServiceUnavailable
+	}
+	if !exists {
+		return nil, ErrEventNotFound
+	}
 	seen := make(map[domain.TicketType]struct{})
 	now := time.Now().UTC()
 	docs := make([]interface{}, 0, len(req.Items))

@@ -13,13 +13,15 @@ import (
 
 // Config holds runtime configuration loaded from the environment.
 type Config struct {
-	Port           string
-	MongoURI       string
-	MongoDatabase  string
-	Environment    string
-	ServiceName    string
-	LogLevel       string
-	HoldTTLMinutes int
+	Port                  string
+	MongoURI              string
+	MongoDatabase         string
+	EventServiceURL       string
+	Environment           string
+	ServiceName           string
+	LogLevel              string
+	HoldTTLMinutes        int
+	EventServiceTimeoutMs int
 	// JWTSecret is the HMAC key shared with the User Service for validating Bearer tokens.
 	JWTSecret string
 	// AuthDisabled skips JWT checks when true; only allowed in development or test environments.
@@ -38,16 +40,18 @@ func Load() (Config, error) {
 	}
 
 	cfg := Config{
-		Port:            port,
-		MongoURI:        os.Getenv("MONGODB_URI"),
-		MongoDatabase:   getEnv("MONGODB_DATABASE", "phoenix_inventory"),
-		Environment:     getEnv("ENVIRONMENT", "development"),
-		ServiceName:     getEnv("SERVICE_NAME", "ticket-inventory-service"),
-		LogLevel:        getEnv("LOG_LEVEL", "info"),
-		HoldTTLMinutes:  getEnvInt("HOLD_TTL_MINUTES", 15),
-		JWTSecret:       strings.TrimSpace(os.Getenv("JWT_SECRET")),
-		AuthDisabled:    strings.TrimSpace(os.Getenv("AUTH_DISABLED")),
-		ServiceRegistry: map[string][]string{},
+		Port:                  port,
+		MongoURI:              os.Getenv("MONGODB_URI"),
+		MongoDatabase:         getEnv("MONGODB_DATABASE", "phoenix_inventory"),
+		EventServiceURL:       strings.TrimSpace(getEnv("EVENT_SERVICE_URL", "")),
+		Environment:           getEnv("ENVIRONMENT", "development"),
+		ServiceName:           getEnv("SERVICE_NAME", "ticket-inventory-service"),
+		LogLevel:              getEnv("LOG_LEVEL", "info"),
+		HoldTTLMinutes:        getEnvInt("HOLD_TTL_MINUTES", 15),
+		EventServiceTimeoutMs: getEnvInt("EVENT_SERVICE_TIMEOUT_MS", 3000),
+		JWTSecret:             strings.TrimSpace(os.Getenv("JWT_SECRET")),
+		AuthDisabled:          strings.TrimSpace(os.Getenv("AUTH_DISABLED")),
+		ServiceRegistry:       map[string][]string{},
 	}
 
 	if cfg.MongoURI == "" {
@@ -132,4 +136,12 @@ func (c Config) HoldTTL() time.Duration {
 		return 15 * time.Minute
 	}
 	return time.Duration(c.HoldTTLMinutes) * time.Minute
+}
+
+// EventServiceTimeout returns the timeout used for outbound event service checks.
+func (c Config) EventServiceTimeout() time.Duration {
+	if c.EventServiceTimeoutMs <= 0 {
+		return 3 * time.Second
+	}
+	return time.Duration(c.EventServiceTimeoutMs) * time.Millisecond
 }

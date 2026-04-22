@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/auth"
+	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/client"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/config"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/handler"
 	applogger "github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/logger"
@@ -35,16 +36,16 @@ func main() {
 	defer func() { _ = log.Sync() }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoURI))
+	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoURI))
 	cancel()
 	if err != nil {
 		log.Fatal("mongo connect failed", zap.Error(err))
 	}
 	defer func() {
-		_ = client.Disconnect(context.Background())
+		_ = mongoClient.Disconnect(context.Background())
 	}()
 
-	db := client.Database(cfg.MongoDatabase)
+	db := mongoClient.Database(cfg.MongoDatabase)
 	repo := repository.NewInventoryRepository(db)
 	if err := repo.Ping(context.Background()); err != nil {
 		log.Fatal("mongo ping failed", zap.Error(err))
@@ -53,7 +54,16 @@ func main() {
 		log.Fatal("mongo indexes", zap.Error(err))
 	}
 
-	svc := service.NewInventoryService(repo, cfg.HoldTTL())
+	var verifier service.EventVerifier
+	if cfg.EventServiceURL != "" {
+		eventClient, err := client.NewEventServiceClient(cfg.EventServiceURL, cfg.EventServiceTimeout())
+		if err != nil {
+			log.Fatal("event service client init failed", zap.Error(err))
+		}
+		verifier = eventClient
+	}
+
+	svc := service.NewInventoryService(repo, cfg.HoldTTL(), verifier)
 	invHandler := handler.NewInventoryHandler(svc)
 	authMW := auth.NewMiddleware(&cfg)
 	router := handler.NewRouter(log, invHandler, authMW, cfg.ServiceName)
