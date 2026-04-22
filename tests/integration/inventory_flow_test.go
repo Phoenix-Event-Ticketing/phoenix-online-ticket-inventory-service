@@ -67,7 +67,7 @@ func newTestServer(t *testing.T) *httptest.Server {
 	svc := service.NewInventoryService(repo, 30*time.Minute)
 	invHandler := handler.NewInventoryHandler(svc)
 	authMW := auth.NewMiddleware(&cfg)
-	router := handler.NewRouter(zap.NewNop(), invHandler, authMW, cfg.ServiceName)
+	router := handler.NewRouter(zap.NewNop(), invHandler, authMW, cfg.ServiceName, false)
 	srv := httptest.NewServer(router)
 
 	t.Cleanup(func() {

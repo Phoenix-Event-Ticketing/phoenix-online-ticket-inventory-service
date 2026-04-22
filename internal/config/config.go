@@ -22,6 +22,9 @@ type Config struct {
 	LogLevel              string
 	HoldTTLMinutes        int
 	EventServiceTimeoutMs int
+	MetricsEnabled        bool
+	JaegerEndpoint        string
+	OtelTracesSampler     string
 	// JWTSecret is the HMAC key shared with the User Service for validating Bearer tokens.
 	JWTSecret string
 	// AuthDisabled skips JWT checks when true; only allowed in development or test environments.
@@ -49,6 +52,9 @@ func Load() (Config, error) {
 		LogLevel:              getEnv("LOG_LEVEL", "info"),
 		HoldTTLMinutes:        getEnvInt("HOLD_TTL_MINUTES", 15),
 		EventServiceTimeoutMs: getEnvInt("EVENT_SERVICE_TIMEOUT_MS", 3000),
+		MetricsEnabled:        getEnvBool("METRICS_ENABLED", true),
+		JaegerEndpoint:        strings.TrimSpace(getEnv("JAEGER_ENDPOINT", "")),
+		OtelTracesSampler:     strings.TrimSpace(getEnv("OTEL_TRACES_SAMPLER", "1.0")),
 		JWTSecret:             strings.TrimSpace(os.Getenv("JWT_SECRET")),
 		AuthDisabled:          strings.TrimSpace(os.Getenv("AUTH_DISABLED")),
 		ServiceRegistry:       map[string][]string{},
@@ -128,6 +134,14 @@ func getEnvInt(key string, def int) int {
 		return def
 	}
 	return n
+}
+
+func getEnvBool(key string, def bool) bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	if v == "" {
+		return def
+	}
+	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
 // HoldTTL returns the duration tickets stay on hold before expiring.

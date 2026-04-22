@@ -14,6 +14,7 @@ import (
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/config"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/handler"
 	applogger "github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/logger"
+	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/observability"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/repository"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/service"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -34,6 +35,14 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() { _ = log.Sync() }()
+
+	shutdownTracing, err := observability.InitTracing(context.Background(), cfg.ServiceName, cfg.JaegerEndpoint, cfg.OtelTracesSampler)
+	if err != nil {
+		log.Fatal("tracing init failed", zap.Error(err))
+	}
+	defer func() {
+		_ = shutdownTracing(context.Background())
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoURI))
@@ -66,7 +75,7 @@ func main() {
 	svc := service.NewInventoryService(repo, cfg.HoldTTL(), verifier)
 	invHandler := handler.NewInventoryHandler(svc)
 	authMW := auth.NewMiddleware(&cfg)
-	router := handler.NewRouter(log, invHandler, authMW, cfg.ServiceName)
+	router := handler.NewRouter(log, invHandler, authMW, cfg.ServiceName, cfg.MetricsEnabled)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

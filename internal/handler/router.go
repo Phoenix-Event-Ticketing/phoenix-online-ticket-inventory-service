@@ -6,13 +6,16 @@ import (
 
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/auth"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/middleware"
+	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/observability"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.uber.org/zap"
 )
 
 // NewRouter configures Gin with middleware and inventory routes.
 // serviceName is returned by GET /inventory (public); empty uses "ticket-inventory-service".
-func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware, serviceName string) *gin.Engine {
+func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware, serviceName string, metricsEnabled bool) *gin.Engine {
 	if log == nil {
 		log = zap.NewNop()
 	}
@@ -21,12 +24,21 @@ func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware, serv
 	}
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(otelgin.Middleware(serviceName))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.AccessLog(log))
+	r.Use(func(c *gin.Context) {
+		c.Next()
+		observability.RecordHTTPRequest(c.FullPath(), c.Request.Method, c.Writer.Status())
+	})
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+	if metricsEnabled {
+		observability.Register()
+		r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	}
 
 	name := strings.TrimSpace(serviceName)
 	if name == "" {

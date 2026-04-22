@@ -22,7 +22,7 @@ func testRouter(t *testing.T) *gin.Engine {
 	cfg := &config.Config{Environment: "test", AuthDisabled: "true"}
 	svc := service.NewInventoryService(service.NewFakeInventoryRepo(), time.Minute)
 	h := NewInventoryHandler(svc)
-	return NewRouter(zap.NewNop(), h, auth.NewMiddleware(cfg), "ticket-inventory-service")
+	return NewRouter(zap.NewNop(), h, auth.NewMiddleware(cfg), "ticket-inventory-service", false)
 }
 
 func TestRouter_Health(t *testing.T) {
@@ -52,11 +52,19 @@ func TestRespondServiceErr_EventValidationMappings(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
 			if !respondServiceErr(c, tc.err) {
 				t.Fatal("expected handled error")
 			}
 			if w.Code != tc.want {
 				t.Fatalf("want %d got %d", tc.want, w.Code)
+			}
+			var body map[string]interface{}
+			if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := body["errorCode"]; !ok {
+				t.Fatal("missing errorCode field")
 			}
 		})
 	}
