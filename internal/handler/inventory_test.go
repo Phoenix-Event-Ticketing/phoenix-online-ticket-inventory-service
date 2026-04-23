@@ -35,6 +35,24 @@ func TestRouter_Health(t *testing.T) {
 	}
 }
 
+func TestRouter_Metrics_Enabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := &config.Config{Environment: "test", AuthDisabled: "true"}
+	svc := service.NewInventoryService(service.NewFakeInventoryRepo(), time.Minute)
+	h := NewInventoryHandler(svc)
+	r := NewRouter(zap.NewNop(), h, auth.NewMiddleware(cfg), "ticket-inventory-service", true)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "inventory_http_requests_total") {
+		t.Fatalf("expected metrics output, got %s", w.Body.String())
+	}
+}
+
 func TestRespondServiceErr_EventValidationMappings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
