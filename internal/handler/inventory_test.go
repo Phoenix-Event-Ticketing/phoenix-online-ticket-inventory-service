@@ -22,7 +22,7 @@ func testRouter(t *testing.T) *gin.Engine {
 	cfg := &config.Config{Environment: "test", AuthDisabled: "true"}
 	svc := service.NewInventoryService(service.NewFakeInventoryRepo(), time.Minute)
 	h := NewInventoryHandler(svc)
-	return NewRouter(zap.NewNop(), h, auth.NewMiddleware(cfg), "ticket-inventory-service", false)
+	return NewRouter(zap.NewNop(), h, auth.NewMiddleware(cfg), "ticket-inventory-service", false, nil)
 }
 
 func TestRouter_Health(t *testing.T) {
@@ -40,7 +40,7 @@ func TestRouter_Metrics_Enabled(t *testing.T) {
 	cfg := &config.Config{Environment: "test", AuthDisabled: "true"}
 	svc := service.NewInventoryService(service.NewFakeInventoryRepo(), time.Minute)
 	h := NewInventoryHandler(svc)
-	r := NewRouter(zap.NewNop(), h, auth.NewMiddleware(cfg), "ticket-inventory-service", true)
+	r := NewRouter(zap.NewNop(), h, auth.NewMiddleware(cfg), "ticket-inventory-service", true, nil)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)

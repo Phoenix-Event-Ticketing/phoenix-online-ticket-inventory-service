@@ -75,7 +75,7 @@ func main() {
 	svc := service.NewInventoryService(repo, cfg.HoldTTL(), verifier)
 	invHandler := handler.NewInventoryHandler(svc)
 	authMW := auth.NewMiddleware(&cfg)
-	router := handler.NewRouter(log, invHandler, authMW, cfg.ServiceName, cfg.MetricsEnabled)
+	router := handler.NewRouter(log, invHandler, authMW, cfg.ServiceName, cfg.MetricsEnabled, cfg.CORSAllowedOrigins)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

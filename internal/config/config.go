@@ -16,6 +16,7 @@ type Config struct {
 	Port                  string
 	MongoURI              string
 	MongoDatabase         string
+	CORSAllowedOrigins    []string
 	EventServiceURL       string
 	Environment           string
 	ServiceName           string
@@ -46,6 +47,7 @@ func Load() (Config, error) {
 		Port:                  port,
 		MongoURI:              os.Getenv("MONGODB_URI"),
 		MongoDatabase:         getEnv("MONGODB_DATABASE", "phoenix_inventory"),
+		CORSAllowedOrigins:    parseCSV(getEnv("APP_CORS_ALLOWED_ORIGINS", "http://localhost:3000")),
 		EventServiceURL:       strings.TrimSpace(getEnv("EVENT_SERVICE_URL", "")),
 		Environment:           getEnv("ENVIRONMENT", "development"),
 		ServiceName:           getEnv("SERVICE_NAME", "ticket-inventory-service"),
@@ -142,6 +144,18 @@ func getEnvBool(key string, def bool) bool {
 		return def
 	}
 	return v == "1" || v == "true" || v == "yes" || v == "on"
+}
+
+func parseCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 // HoldTTL returns the duration tickets stay on hold before expiring.

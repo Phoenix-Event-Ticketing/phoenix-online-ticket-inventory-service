@@ -3,10 +3,12 @@ package handler
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/auth"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/middleware"
 	"github.com/Phoenix-Event-Ticketing/phoenix-online-ticket-inventory-service/internal/observability"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -15,15 +17,26 @@ import (
 
 // NewRouter configures Gin with middleware and inventory routes.
 // serviceName is returned by GET /inventory (public); empty uses "ticket-inventory-service".
-func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware, serviceName string, metricsEnabled bool) *gin.Engine {
+func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware, serviceName string, metricsEnabled bool, corsAllowedOrigins []string) *gin.Engine {
 	if log == nil {
 		log = zap.NewNop()
 	}
 	if mw == nil {
 		mw = auth.NewMiddleware(nil)
 	}
+	if len(corsAllowedOrigins) == 0 {
+		corsAllowedOrigins = []string{"http://localhost:3000"}
+	}
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     corsAllowedOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID"},
+		ExposeHeaders:    []string{"X-Request-ID"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 	r.Use(otelgin.Middleware(serviceName))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.AccessLog(log))
