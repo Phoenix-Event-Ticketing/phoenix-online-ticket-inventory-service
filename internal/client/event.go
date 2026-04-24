@@ -40,7 +40,7 @@ func (c *EventServiceClient) EventExists(ctx context.Context, eventID string) (b
 		return false, nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/events/"+url.PathEscape(eventID), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/events/"+url.PathEscape(eventID)+"/basic", nil)
 	if err != nil {
 		return false, err
 	}

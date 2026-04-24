@@ -31,13 +31,13 @@ func TestNewEventServiceClient_ValidatesInput(t *testing.T) {
 func TestEventExists_StatusMappingAndPathEscape(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/events/evt-ok":
+		case "/events/evt-ok/basic":
 			w.WriteHeader(http.StatusOK)
-		case "/events/evt-missing":
+		case "/events/evt-missing/basic":
 			w.WriteHeader(http.StatusNotFound)
-		case "/events/evt-upstream":
+		case "/events/evt-upstream/basic":
 			w.WriteHeader(http.StatusBadGateway)
-		case "/events/evt with space":
+		case "/events/evt with space/basic":
 			w.WriteHeader(http.StatusOK)
 		default:
 			w.WriteHeader(http.StatusNotFound)
