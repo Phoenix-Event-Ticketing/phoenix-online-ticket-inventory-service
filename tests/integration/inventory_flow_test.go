@@ -302,10 +302,11 @@ func TestServiceRegistryReserve(t *testing.T) {
 		t.Fatalf("hold with service token status %d: %s", res.StatusCode, b)
 	}
 
+	// Event inventory read endpoints are public; they no longer require VIEW_TICKET_INVENTORY.
 	res = getWithAuth(t, srv, "/inventory/event/"+eventID, bearerServiceToken(t, "booking-service"))
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusForbidden {
+	if res.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(res.Body)
-		t.Fatalf("expected 403 for VIEW without registry entry, got %d: %s", res.StatusCode, b)
+		t.Fatalf("expected 200 for public event inventory read, got %d: %s", res.StatusCode, b)
 	}
 }
