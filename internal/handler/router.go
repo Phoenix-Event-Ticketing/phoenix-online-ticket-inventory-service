@@ -60,6 +60,8 @@ func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware, serv
 	r.GET("/inventory", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"service": name})
 	})
+	r.GET("/inventory/event/:eventId", inv.ListByEvent)
+	r.GET("/inventory/event/:eventId/availability", inv.Availability)
 
 	grp := r.Group("/inventory")
 	grp.Use(mw.Authenticate())
@@ -67,8 +69,6 @@ func NewRouter(log *zap.Logger, inv *InventoryHandler, mw *auth.Middleware, serv
 		grp.POST("", mw.RequirePermission(auth.CreateTicketType), inv.CreateInventory)
 		grp.POST("/bulk", mw.RequirePermission(auth.CreateTicketType), inv.BulkCreate)
 		grp.PUT("/:inventoryId", mw.RequirePermission(auth.UpdateTicketInventory), inv.Update)
-		grp.GET("/event/:eventId", mw.RequirePermission(auth.ViewTicketInventory), inv.ListByEvent)
-		grp.GET("/event/:eventId/availability", mw.RequirePermission(auth.ViewTicketInventory), inv.Availability)
 		grp.GET("/:inventoryId", mw.RequirePermission(auth.ViewTicketInventory), inv.GetByID)
 		grp.POST("/hold", mw.RequirePermission(auth.ReserveTicket), inv.Hold)
 		grp.POST("/confirm", mw.RequirePermission(auth.ReserveTicket), inv.Confirm)
